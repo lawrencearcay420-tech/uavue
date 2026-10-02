@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import { useOrdersStore } from '@/stores/orders'
+import { useProductsStore } from '@/stores/products'
 import { useUIStore } from '@/stores/ui'
 import CheckoutSteps from '@/components/checkout/CheckoutSteps.vue'
 import ShippingForm from '@/components/checkout/ShippingForm.vue'
@@ -14,6 +15,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 const ordersStore = useOrdersStore()
+const productsStore = useProductsStore()
 const uiStore = useUIStore()
 
 const step = ref(1)
@@ -31,6 +33,7 @@ const shippingInfo = ref({
 })
 const paymentMethod = ref('gcash')
 const addresses = ref([])
+const isSubmitting = ref(false)
 
 function nextStep() {
   step.value = Math.min(4, step.value + 1)
@@ -41,9 +44,22 @@ function prevStep() {
 }
 
 function handleCheckout() {
+  if (isSubmitting.value) return
+
   if (!authStore.isLoggedIn) {
     uiStore.showToast('Please sign in before placing your order.', 'info')
     router.push({ name: 'Login', query: { redirect: '/checkout' } })
+    return
+  }
+
+  if (cartStore.isEmpty) {
+    uiStore.showToast('Your cart is empty. Add a product before placing your order.', 'error')
+    router.push('/shop')
+    return
+  }
+
+  if (cartStore.selectedItems.length === 0) {
+    uiStore.showToast('Select at least one item in your cart before placing your order.', 'info')
     return
   }
 
@@ -54,21 +70,41 @@ function handleCheckout() {
   }
 
   const requiredShippingFields = ['fullName', 'email', 'phone', 'address', 'city', 'state', 'zipCode', 'country']
-  if (requiredShippingFields.some(field => !String(shippingInfo.value[field] || '').trim())) {
-    uiStore.showToast('Complete all required shipping information before placing your order.', 'error')
+  const shippingIsIncomplete = requiredShippingFields.some(field => !String(shippingInfo.value[field] || '').trim())
+  const emailIsInvalid = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingInfo.value.email.trim())
+  if (shippingIsIncomplete || emailIsInvalid) {
+    uiStore.showToast(
+      emailIsInvalid
+        ? 'Enter a valid email address before placing your order.'
+        : 'Complete all required shipping information before placing your order.',
+      'error'
+    )
     step.value = 1
     return
   }
 
+  isSubmitting.value = true
+  const orderItems = cartStore.selectedItems.map(item => ({
+    productId: item.productId,
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    size: item.size,
+    image: item.image
+  }))
+
+  const inventoryResult = productsStore.deductInventoryForItems(orderItems)
+  if (!inventoryResult.success) {
+    isSubmitting.value = false
+    const message = inventoryResult.reason === 'persistence'
+      ? 'Could not update stock. Please try again.'
+      : 'Some items are no longer available in the selected quantities. Please review your cart.'
+    uiStore.showToast(message, 'error', 5000)
+    return
+  }
+
   const order = ordersStore.createOrder({
-    items: cartStore.items.map(item => ({
-      productId: item.productId,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      size: item.size,
-      image: item.image
-    })),
+    items: orderItems,
     subtotal: cartStore.subtotal,
     shipping: cartStore.shipping,
     discount: cartStore.discount,
@@ -79,11 +115,17 @@ function handleCheckout() {
   })
 
   if (!order) {
-    uiStore.showToast('Could not save your order. Please try again.', 'error', 5000)
+    const restoreResult = productsStore.restoreInventoryForItems(orderItems)
+    isSubmitting.value = false
+    if (!restoreResult.success) {
+      uiStore.showToast('Could not save the order and stock could not be restored. Please contact the store administrator.', 'error', 7000)
+      return
+    }
+    uiStore.showToast('Could not save your order. Stock was restored; please try again.', 'error', 5000)
     return
   }
 
-  cartStore.clearCart()
+  cartStore.clearSelectedItems()
   router.push({ name: 'OrderSuccess', query: { orderId: order.id } })
 }
 
@@ -91,10 +133,19 @@ function isStepValid(stepNum) {
   switch (stepNum) {
     case 1:
       return ['fullName', 'email', 'phone', 'address', 'city', 'state', 'zipCode', 'country']
-        .every(field => String(shippingInfo.value[field] || '').trim())
+        .every(field => String(shippingInfo.value[field] || '').trim()) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingInfo.value.email.trim())
     default:
       return true
   }
+}
+
+function handleFormSubmit() {
+  if (step.value < 4) {
+    nextStep()
+    return
+  }
+  handleCheckout()
 }
 
 function handleNavClick() {
@@ -112,7 +163,7 @@ function handleNavClick() {
 
     <div class="checkout-layout">
       <div class="checkout-form-section">
-        <form @submit.prevent="step < 4 ? nextStep() : handleCheckout()">
+        <form @submit.prevent="handleFormSubmit">
           <div v-show="step === 1">
             <ShippingForm v-model="shippingInfo" :addresses="addresses" />
           </div>
@@ -138,8 +189,8 @@ function handleNavClick() {
             <button v-if="step > 1" type="button" class="back-button" @click="prevStep">
               Back
             </button>
-            <button :type="step < 4 ? 'submit' : 'button'" class="next-button" @click="step >= 4 ? handleCheckout() : null" :disabled="!isStepValid(step)">
-              {{ step === 4 ? 'Place Order' : 'Continue' }}
+            <button type="submit" class="next-button" :disabled="!isStepValid(step) || isSubmitting">
+              {{ isSubmitting ? 'Placing Order…' : step === 4 ? 'Place Order' : 'Continue' }}
             </button>
           </div>
         </form>

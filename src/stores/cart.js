@@ -37,15 +37,18 @@ export const useCartStore = defineStore('cart', () => {
     setStorage(STORAGE_KEYS.CART, items.value)
   }
 
+  const selectedItems = computed(() => items.value.filter(item => item.selected !== false))
+  const selectedItemCount = computed(() => selectedItems.value.reduce((sum, item) => sum + item.quantity, 0))
   const itemCount = computed(() => items.value.reduce((sum, item) => sum + item.quantity, 0))
 
-  const subtotal = computed(() => items.value.reduce((sum, item) => sum + item.price * item.quantity, 0))
+  const subtotal = computed(() => selectedItems.value.reduce((sum, item) => sum + item.price * item.quantity, 0))
 
-  const shipping = computed(() => subtotal.value >= 2000 ? 0 : 120)
+  const discount = computed(() => appliedPromo.value
+    ? applyPromoCode(appliedPromo.value, subtotal.value)
+    : promoDiscount.value)
+  const shipping = computed(() => subtotal.value === 0 || subtotal.value >= 2000 ? 0 : 120)
 
-  const tax = computed(() => Math.round((subtotal.value - promoDiscount.value) * 0.12))
-
-  const discount = computed(() => promoDiscount.value)
+  const tax = computed(() => Math.round((subtotal.value - discount.value) * 0.12))
 
   const total = computed(() => subtotal.value + shipping.value + tax.value - discount.value)
 
@@ -55,15 +58,35 @@ export const useCartStore = defineStore('cart', () => {
 
   const isEmpty = computed(() => items.value.length === 0)
 
+  function setItemSelected(productId, size, selected) {
+    const item = items.value.find(i => i.productId === productId && i.size === size)
+    if (!item) return
+    item.selected = selected
+    saveCart()
+  }
+
+  function setAllItemsSelected(selected) {
+    items.value.forEach(item => { item.selected = selected })
+    saveCart()
+  }
+
+  function clearSelectedItems() {
+    items.value = items.value.filter(item => item.selected === false)
+    removePromo()
+    saveCart()
+  }
+
   function addItem(product, size = 'OS', quantity = 1) {
     const existingIndex = items.value.findIndex(i => i.productId === product.id && i.size === size)
     if (existingIndex !== -1) {
       items.value[existingIndex].quantity += quantity
+      items.value[existingIndex].selected = true
     } else {
       items.value.push({
         productId: product.id,
         size,
         quantity,
+        selected: true,
         name: product.name,
         price: product.price,
         image: product.image,
@@ -147,9 +170,9 @@ export const useCartStore = defineStore('cart', () => {
     appliedPromo.value = null
   }
 
-  function validateStock() {
+  function validateStock(cartItems = selectedItems.value) {
     const errors = []
-    for (const item of items.value) {
+    for (const item of cartItems) {
       const product = productsStore.getProductById(item.productId)
       if (!product) {
         errors.push(`${item.name} is no longer available`)
@@ -170,6 +193,8 @@ export const useCartStore = defineStore('cart', () => {
     promoError,
     appliedPromo,
     itemCount,
+    selectedItems,
+    selectedItemCount,
     subtotal,
     shipping,
     tax,
@@ -178,6 +203,9 @@ export const useCartStore = defineStore('cart', () => {
     freeShippingProgress,
     freeShippingRemaining,
     isEmpty,
+    setItemSelected,
+    setAllItemsSelected,
+    clearSelectedItems,
     addItem,
     removeItem,
     updateQuantity,

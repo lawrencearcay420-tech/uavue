@@ -10,7 +10,7 @@ const productsStore = useProductsStore()
 
 const loading = ref(false)
 const searchInput = ref(queryValue(route.query.q))
-const selectedCategory = ref(queryValue(route.query.category) || 'all')
+const selectedCategory = ref(normalizeCategoryValue(route.query.category))
 const activeSort = ref(queryValue(route.query.sort) || 'featured')
 const newArrivalsOnly = ref(queryValue(route.query.new) === '1')
 const priceMax = ref(5000)
@@ -88,7 +88,7 @@ const filteredProducts = computed(() => {
 })
 
 function updateFromQuery() {
-  selectedCategory.value = queryValue(route.query.category) || 'all'
+  selectedCategory.value = normalizeCategoryValue(route.query.category)
   activeSort.value = queryValue(route.query.sort) || 'featured'
   newArrivalsOnly.value = queryValue(route.query.new) === '1'
   searchInput.value = queryValue(route.query.q)
@@ -101,9 +101,15 @@ function updateURL() {
   if (newArrivalsOnly.value) query.new = '1'
   if (searchInput.value.trim()) query.q = searchInput.value.trim()
 
+  const nextQuery = { ...route.query, ...query }
+  if (selectedCategory.value === 'all' && !query.category) delete nextQuery.category
+  if (activeSort.value === 'featured' && !query.sort) delete nextQuery.sort
+  if (!newArrivalsOnly.value && !query.new) delete nextQuery.new
+  if (!searchInput.value.trim() && !query.q) delete nextQuery.q
+
   router.replace({
     path: route.path,
-    query
+    query: nextQuery
   })
 }
 
@@ -112,10 +118,32 @@ onMounted(() => {
 })
 
 watch(() => [route.query.category, route.query.sort, route.query.new, route.query.q], updateFromQuery)
-watch([selectedCategory, activeSort], updateURL)
+watch(() => [selectedCategory.value, activeSort.value, newArrivalsOnly.value, searchInput.value], updateURL)
 
 function queryValue(value) {
   return Array.isArray(value) ? String(value[0] || '') : String(value || '')
+}
+
+function normalizeCategoryValue(value) {
+  const normalizedValue = queryValue(value).trim().toLowerCase()
+
+  if (!normalizedValue || normalizedValue === 'all' || normalizedValue === 'all pieces' || normalizedValue === 'all-pieces') {
+    return 'all'
+  }
+
+  const categoryMap = {
+    clothing: 'clothing',
+    top: 'tops',
+    tops: 'tops',
+    bottom: 'bottoms',
+    bottoms: 'bottoms',
+    jacket: 'jacket',
+    jackets: 'jacket',
+    accessory: 'accessories',
+    accessories: 'accessories'
+  }
+
+  return categoryMap[normalizedValue] || normalizedValue
 }
 </script>
 

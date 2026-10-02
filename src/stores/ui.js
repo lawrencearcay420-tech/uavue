@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { getStorage, setStorage, STORAGE_KEYS } from '@/utils/storage'
 
 export const useUIStore = defineStore('ui', () => {
-  const theme = ref(getStorage(STORAGE_KEYS.THEME, 'light'))
+  const theme = ref(getStorage(STORAGE_KEYS.THEME, 'dark'))
   const isDark = computed(() => theme.value === 'dark')
   const isMobileMenuOpen = ref(false)
   const isSearchOpen = ref(false)

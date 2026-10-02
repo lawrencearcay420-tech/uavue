@@ -34,11 +34,13 @@ function handleLogin() {
   const success = authStore.login(formData.value.email, formData.value.password)
   if (success) {
     uiStore.showToast('Welcome back!', 'success')
-    const redirect = router.currentRoute.value.query.redirect || '/'
-    router.push(redirect)
-  } else {
-    errors.value.password = 'Invalid email or password'
+    const redirect = router.currentRoute.value.query.redirect
+    router.push(typeof redirect === 'string' && redirect ? redirect : '/')
+    return
   }
+
+  errors.value.password = 'Invalid email or password'
+  errors.value.email = 'Invalid email or password'
 }
 
 function handleGuestLogin() {
@@ -109,7 +111,7 @@ function handleAdminLogin() {
       </form>
 
       <div class="login-footer">
-        <p>Don't have an account? <a href="/login" class="signup-link">Sign up</a></p>
+        <p>Need to explore first? <router-link to="/" class="signup-link">Continue shopping</router-link></p>
       </div>
     </div>
   </div>

@@ -30,7 +30,7 @@ function next() {
     <h3 class="summary-title">Order Summary</h3>
 
     <div class="summary-items">
-      <div v-for="item in cartStore.items" :key="item.id" class="summary-item">
+      <div v-for="item in cartStore.selectedItems" :key="`${item.productId}-${item.size}`" class="summary-item">
         <div class="item-image">
           <img :src="item.image" :alt="item.name" />
           <span class="item-qty">×{{ item.quantity }}</span>

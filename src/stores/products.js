@@ -3,6 +3,17 @@ import { ref, computed } from 'vue'
 import { getStorage, setStorage, STORAGE_KEYS } from '@/utils/storage'
 import { starterProducts } from '@/data/products'
 
+const PRODUCT_CATALOG_VERSION = 8
+const REMOVED_STARTER_PRODUCT_IDS = new Set([13, 14])
+const STARTER_HOODIE_COLORS = new Set(['Black', 'White', 'Wine Red'])
+const REMOVED_DUPLICATE_PRODUCT_KEYS = new Set([
+  'ua cap|accessories|white',
+  'ua slides|accessories|black',
+  'ua gala mode shades|accessories|blue',
+  '8 pocket gaterized cargo pants|bottoms|black',
+  'ua architect tee|tops|monochrome grey'
+])
+
 export const useProductsStore = defineStore('products', () => {
   const products = ref(getStorage(STORAGE_KEYS.PRODUCTS, []))
   const searchQuery = ref('')
@@ -14,6 +25,59 @@ export const useProductsStore = defineStore('products', () => {
       products.value = starterProducts.map(p => ({ ...p }))
       saveProducts()
     }
+
+    if (getStorage('forme-product-catalog-version', 0) < PRODUCT_CATALOG_VERSION) {
+      const existingProducts = new Map(products.value.map(product => [Number(product.id), product]))
+      const starterProductIds = new Set(starterProducts.map(product => product.id))
+      const removedDuplicateProductKeys = new Set()
+
+      products.value = [
+        ...starterProducts.map(product => {
+          const existingProduct = existingProducts.get(product.id)
+          if (!existingProduct) return { ...product }
+
+          return {
+            ...product,
+            archived: existingProduct.archived ?? false,
+            reviews: existingProduct.reviews ?? [],
+            rating: existingProduct.rating ?? product.rating ?? 0,
+            reviewCount: existingProduct.reviewCount ?? product.reviewCount ?? 0
+          }
+        }),
+        ...products.value.filter(product => {
+          if (
+            starterProductIds.has(Number(product.id)) ||
+            REMOVED_STARTER_PRODUCT_IDS.has(Number(product.id))
+          ) {
+            return false
+          }
+
+          if (
+            product.name === 'UA Hoodie' &&
+            normalizeCategoryName(product.category) === 'Jacket' &&
+            STARTER_HOODIE_COLORS.has(product.color)
+          ) {
+            return false
+          }
+
+          const duplicateKey = `${product.name?.toLowerCase()}|${normalizeCategoryName(product.category)?.toLowerCase()}|${product.color?.toLowerCase()}`
+          if (
+            REMOVED_DUPLICATE_PRODUCT_KEYS.has(duplicateKey) &&
+            !removedDuplicateProductKeys.has(duplicateKey)
+          ) {
+            removedDuplicateProductKeys.add(duplicateKey)
+            return false
+          }
+
+          return true
+        })
+      ]
+
+      if (saveProducts()) {
+        setStorage('forme-product-catalog-version', PRODUCT_CATALOG_VERSION)
+      }
+    }
+
     normalizeProducts()
   }
 
@@ -210,6 +274,64 @@ export const useProductsStore = defineStore('products', () => {
     return true
   }
 
+  const adjustInventoryForItems = (items, direction) => {
+    if (!Array.isArray(items) || ![-1, 1].includes(direction)) {
+      return { success: false, reason: 'invalid-items' }
+    }
+
+    const quantitiesByProduct = new Map()
+    for (const item of items) {
+      if (!item || !Number.isInteger(item.quantity) || item.quantity <= 0 || !item.size) {
+        return { success: false, reason: 'invalid-items' }
+      }
+      const productQuantities = quantitiesByProduct.get(item.productId) || new Map()
+      productQuantities.set(item.size, (productQuantities.get(item.size) || 0) + item.quantity)
+      quantitiesByProduct.set(item.productId, productQuantities)
+    }
+
+    const changes = []
+    for (const [productId, sizeQuantities] of quantitiesByProduct) {
+      const product = products.value.find(item => item.id === productId)
+      if (!product) return { success: false, reason: 'unavailable' }
+
+      for (const [size, quantity] of sizeQuantities) {
+        const currentQuantity = product.inventory?.[size]
+        if (!Number.isInteger(currentQuantity) || currentQuantity < 0 ||
+            (direction < 0 && currentQuantity < quantity)) {
+          return { success: false, reason: 'unavailable' }
+        }
+        changes.push({ product, size, quantity, currentQuantity })
+      }
+    }
+
+    const previousProducts = new Map(
+      changes.map(({ product }) => [
+        product,
+        { inventory: product.inventory, stock: product.stock }
+      ])
+    )
+
+    for (const { product, size, quantity, currentQuantity } of changes) {
+      product.inventory = {
+        ...product.inventory,
+        [size]: currentQuantity + direction * quantity
+      }
+      product.stock = Object.values(product.inventory).reduce((total, count) => total + count, 0)
+    }
+
+    if (!saveProducts()) {
+      for (const [product, previous] of previousProducts) {
+        product.inventory = previous.inventory
+        product.stock = previous.stock
+      }
+      return { success: false, reason: 'persistence' }
+    }
+    return { success: true }
+  }
+
+  const deductInventoryForItems = items => adjustInventoryForItems(items, -1)
+  const restoreInventoryForItems = items => adjustInventoryForItems(items, 1)
+
   const setSearchQuery = (query) => { searchQuery.value = query }
   const setActiveCategory = (category) => { activeCategory.value = category }
   const setSortBy = (sort) => { sortBy.value = sort }
@@ -232,6 +354,8 @@ export const useProductsStore = defineStore('products', () => {
     duplicateProduct,
     updateInventory,
     setInventory,
+    deductInventoryForItems,
+    restoreInventoryForItems,
     setSearchQuery,
     setActiveCategory,
     setSortBy,

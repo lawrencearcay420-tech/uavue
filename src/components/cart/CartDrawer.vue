@@ -17,6 +17,7 @@ const discount = computed(() => cartStore.discount)
 const shipping = computed(() => cartStore.shipping)
 const tax = computed(() => cartStore.tax)
 const isEmpty = computed(() => cartStore.items.length === 0)
+const allSelected = computed(() => cartStore.items.every(item => item.selected !== false))
 
 function proceedToCheckout() {
   uiStore.setCartOpen(false)
@@ -25,6 +26,10 @@ function proceedToCheckout() {
 
 function closeDrawer() {
   uiStore.setCartOpen(false)
+}
+
+function toggleAllItems() {
+  cartStore.setAllItemsSelected(!allSelected.value)
 }
 </script>
 
@@ -46,9 +51,13 @@ function closeDrawer() {
 
       <div v-else class="cart-content">
         <div class="cart-items">
+          <button class="select-all-button" @click="toggleAllItems">
+            {{ allSelected ? 'Deselect all' : 'Select all' }}
+          </button>
+          <p class="selection-count">{{ cartStore.selectedItemCount }} item(s) selected for checkout</p>
           <CartItem
             v-for="item in cartStore.items"
-            :key="item.id"
+            :key="`${item.productId}-${item.size}`"
             :item="item"
           />
         </div>
@@ -80,7 +89,7 @@ function closeDrawer() {
         </div>
 
         <div class="cart-footer">
-          <button class="checkout-button" @click="proceedToCheckout">
+          <button class="checkout-button" @click="proceedToCheckout" :disabled="cartStore.selectedItemCount === 0">
             <span>Proceed to Checkout</span>
             <span class="button-arrow" aria-hidden="true">→</span>
           </button>
@@ -166,6 +175,22 @@ function closeDrawer() {
   padding: 20px;
 }
 
+.select-all-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.selection-count {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .cart-summary {
   padding: 16px 24px;
   border-top: 1px solid var(--border-subtle);
@@ -233,6 +258,12 @@ function closeDrawer() {
   background: var(--button-primary-hover-bg);
   border-color: var(--button-primary-hover-bg);
   transform: translateY(-1px);
+}
+
+.checkout-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .continue-button {

@@ -40,6 +40,13 @@ function moveToWishlist() {
 
 <template>
   <div class="cart-item">
+    <input
+      class="cart-item-select"
+      type="checkbox"
+      :checked="item.selected !== false"
+      :aria-label="`Select ${item.name} for checkout`"
+      @change="cartStore.setItemSelected(item.productId, item.size, $event.target.checked)"
+    />
     <img :src="item.image || item.product?.image" :alt="item.name || item.product?.name" class="cart-item-image" loading="lazy" />
 
     <div class="cart-item-details">
@@ -72,9 +79,18 @@ function moveToWishlist() {
 <style scoped>
 .cart-item {
   display: flex;
+  align-items: center;
   gap: 16px;
   padding: 20px 0;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.cart-item-select {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--ink);
+  cursor: pointer;
 }
 
 .cart-item-image {

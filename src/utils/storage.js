@@ -63,8 +63,7 @@ export function migrateStorage() {
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.THEME)) {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    setStorage(STORAGE_KEYS.THEME, prefersDark ? 'dark' : 'light')
+    setStorage(STORAGE_KEYS.THEME, 'dark')
     migrated.theme = true
   }
 

@@ -124,7 +124,7 @@ function toggleAllItems() {
   display: flex;
   flex-direction: column;
   animation: slide-in 0.3s ease both;
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.12);
 }
 
 .cart-header {
@@ -242,16 +242,17 @@ function toggleAllItems() {
   width: 100%;
   min-height: 46px;
   padding: 0 18px;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--text-inverse);
+  border: 1px solid var(--button-primary-bg);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s, color 0.2s, transform 0.2s;
+  border-radius: 6px;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
 }
 
 .checkout-button:hover {
@@ -264,6 +265,7 @@ function toggleAllItems() {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .continue-button {
@@ -274,20 +276,28 @@ function toggleAllItems() {
   width: 100%;
   min-height: 40px;
   padding: 0 16px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
+  border: 1px solid var(--button-secondary-border);
+  background: var(--bg-tertiary);
+  color: var(--ink);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  border-radius: 6px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.2s;
 }
 
 .continue-button:hover {
   border-color: var(--ink);
-  background: var(--bg-tertiary);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--text-inverse);
+  transform: translateY(-1px);
+}
+
+.continue-button span {
+  color: inherit;
+  font-size: inherit;
 }
 
 .button-arrow {
@@ -319,18 +329,23 @@ function toggleAllItems() {
 
 .empty-button {
   padding: 10px 24px;
-  border: 1px solid var(--line);
-  background: transparent;
+  border: 1px solid var(--button-secondary-border);
+  background: var(--bg-tertiary);
   color: var(--ink);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
   cursor: pointer;
-  border-radius: 50px;
+  border-radius: 999px;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .empty-button:hover {
   border-color: var(--ink);
-  background: var(--bg-tertiary);
+  background: var(--ink);
+  color: var(--text-inverse);
+  transform: translateY(-1px);
 }
 
 @keyframes slide-in {

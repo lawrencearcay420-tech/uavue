@@ -39,6 +39,7 @@ export const STORAGE_KEYS = {
   CART: 'forme-cart',
   THEME: 'forme-theme',
   USER: 'forme-user',
+  ACCOUNTS: 'forme-accounts',
   ORDERS: 'forme-orders',
   WISHLIST: 'forme-wishlist',
   ADDRESSES: 'forme-addresses',

@@ -8,7 +8,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
 
+const isSignUp = ref(false)
+
 const formData = ref({
+  name: '',
   email: '',
   password: '',
   remember: false
@@ -18,12 +21,18 @@ const errors = ref({})
 
 function validate() {
   const newErrors = {}
+
+  if (isSignUp.value && !formData.value.name.trim()) {
+    newErrors.name = 'Name is required'
+  }
+
   if (!formData.value.email) newErrors.email = 'Email is required'
   else if (!/\S+@\S+\.\S+/.test(formData.value.email)) newErrors.email = 'Invalid email'
-  
+
   if (!formData.value.password) newErrors.password = 'Password is required'
+  else if (formData.value.password.length < 6 && isSignUp.value) newErrors.password = 'Password must be at least 6 characters'
   else if (formData.value.password.length < 1) newErrors.password = 'Password is required'
-  
+
   errors.value = newErrors
   return Object.keys(newErrors).length === 0
 }
@@ -43,6 +52,34 @@ function handleLogin() {
   errors.value.email = 'Invalid email or password'
 }
 
+function handleSignUp() {
+  if (!validate()) return
+
+  const result = authStore.register({
+    name: formData.value.name,
+    email: formData.value.email,
+    password: formData.value.password
+  })
+
+  if (!result.success) {
+    errors.value.email = result.message
+    return
+  }
+
+  uiStore.showToast('Account created successfully!', 'success')
+  const redirect = router.currentRoute.value.query.redirect
+  router.push(typeof redirect === 'string' && redirect ? redirect : '/')
+}
+
+function submitForm() {
+  if (isSignUp.value) {
+    handleSignUp()
+    return
+  }
+
+  handleLogin()
+}
+
 function handleGuestLogin() {
   formData.value.email = 'guest@ua.com'
   formData.value.password = 'guest'
@@ -60,11 +97,25 @@ function handleAdminLogin() {
   <div class="login-page">
     <div class="login-container">
       <div class="login-header">
-        <h1 class="login-title">Welcome to UA</h1>
-        <p class="login-subtitle">Sign in to access your account, orders, and wishlist.</p>
+        <h1 class="login-title">{{ isSignUp ? 'Create your account' : 'Welcome to UA' }}</h1>
+        <p class="login-subtitle">
+          {{ isSignUp ? 'Create an account to track orders, save favorites, and check out faster.' : 'Please sign in to access your account, orders, and wishlist.' }}
+        </p>
       </div>
 
-      <form class="login-form" @submit.prevent="handleLogin">
+      <form class="login-form" @submit.prevent="submitForm">
+        <div v-if="isSignUp" class="form-group">
+          <label for="name">Full Name</label>
+          <input
+            id="name"
+            v-model="formData.name"
+            type="text"
+            placeholder="Your name"
+            :class="{ error: errors.name }"
+          />
+          <p v-if="errors.name" class="error-message">{{ errors.name }}</p>
+        </div>
+
         <div class="form-group">
           <label for="email">Email Address</label>
           <input
@@ -89,15 +140,16 @@ function handleAdminLogin() {
           <p v-if="errors.password" class="error-message">{{ errors.password }}</p>
         </div>
 
-        <div class="form-options">
+        <div v-if="!isSignUp" class="form-options">
           <label class="checkbox-wrapper">
             <input type="checkbox" v-model="formData.remember" />
             <span>Remember me</span>
           </label>
-          <button type="button" class="forgot-link">Forgot password?</button>
         </div>
 
-        <button type="submit" class="login-button">Sign In</button>
+        <button type="submit" class="login-button">{{ isSignUp ? 'Create account' : 'Sign In' }}</button>
+
+        <button v-if="!isSignUp" type="button" class="forgot-link">Forgot password?</button>
 
         <div class="demo-accounts">
           <p class="demo-label">Demo Accounts:</p>
@@ -111,6 +163,12 @@ function handleAdminLogin() {
       </form>
 
       <div class="login-footer">
+        <p>
+          {{ isSignUp ? 'Already have an account?' : 'Need an account?' }}
+          <button type="button" class="signup-link" @click="isSignUp = !isSignUp">
+            {{ isSignUp ? 'Sign in' : 'Sign up' }}
+          </button>
+        </p>
         <p>Need to explore first? <router-link to="/" class="signup-link">Continue shopping</router-link></p>
       </div>
     </div>
@@ -125,19 +183,24 @@ function handleAdminLogin() {
   justify-content: center;
   padding: 24px;
   position: relative;
-  background: transparent;
+  background: var(--login-bg);
 }
 
 .login-container {
   width: min(100%, 460px);
   padding: 32px 28px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--login-card-border);
   border-radius: 18px;
-  background: rgba(10, 10, 10, 0.72);
+  background: var(--login-card-bg);
   backdrop-filter: blur(10px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
   position: relative;
   z-index: 1;
+  color: var(--login-text-primary);
+}
+
+.login-form {
+  display: block;
 }
 
 .login-header {
@@ -159,16 +222,19 @@ function handleAdminLogin() {
 
 .login-title {
   font-family: var(--serif);
-  font-size: 28px;
-  font-weight: 500;
-  margin: 0 0 8px;
-  color: var(--ink);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  margin: 0 0 10px;
+  color: var(--login-text-primary);
 }
 
 .login-subtitle {
   margin: 0;
   font-size: 14px;
-  color: var(--muted);
+  line-height: 1.6;
+  color: var(--login-text-secondary);
+  font-weight: 500;
 }
 
 .form-group {
@@ -177,28 +243,35 @@ function handleAdminLogin() {
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted);
+  letter-spacing: 0.14em;
+  color: var(--login-text-secondary);
 }
 
 .form-group input {
   width: 100%;
   height: 48px;
   padding: 0 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background: var(--input-bg);
-  color: var(--ink);
+  border: 1px solid var(--login-input-border);
+  border-radius: 10px;
+  background: var(--login-input-bg);
+  color: var(--login-input-text);
   font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input::placeholder {
+  color: var(--login-text-secondary);
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: var(--ink);
+  border-color: var(--login-input-focus-border);
+  background: var(--login-input-focus-bg);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
 }
 
 .form-group input.error {
@@ -222,40 +295,55 @@ function handleAdminLogin() {
 .checkbox-wrapper {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--login-text-secondary);
+  font-weight: 500;
+}
+
+.checkbox-wrapper input {
+  accent-color: var(--login-button-bg);
 }
 
 .forgot-link {
-  color: var(--muted);
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  text-align: center;
+  color: var(--login-text-secondary);
   font-size: 13px;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .forgot-link:hover {
-  color: var(--ink);
+  color: var(--login-text-primary);
   text-decoration: underline;
 }
 
 .login-button {
   width: 100%;
   height: 48px;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--text-inverse);
+  border: 1px solid var(--login-button-border);
+  background: var(--login-button-bg);
+  color: var(--login-button-text);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.14em;
   cursor: pointer;
   border-radius: 50px;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .login-button:hover {
-  opacity: 0.8;
+  background: var(--login-button-hover-bg);
+  color: var(--login-button-hover-text);
+  border-color: var(--login-button-border);
 }
 
 .demo-accounts {
@@ -270,37 +358,43 @@ function handleAdminLogin() {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--muted);
+  color: var(--login-text-secondary);
 }
 
 .demo-btn {
   width: 100%;
   height: 40px;
   margin-bottom: 8px;
-  border: 1px solid var(--line);
-  background: var(--bg-secondary);
-  color: var(--ink);
+  border: 1px solid var(--login-input-border);
+  background: var(--login-input-bg);
+  color: var(--login-text-primary);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
+  border-radius: 10px;
+  transition: all 0.2s ease;
 }
 
 .demo-btn:hover {
-  border-color: var(--ink);
+  border-color: var(--login-input-focus-border);
+  background: var(--login-input-focus-bg);
 }
 
 .login-footer {
   margin-top: 24px;
   text-align: center;
   font-size: 13px;
-  color: var(--muted);
+  color: var(--login-text-secondary);
 }
 
 .signup-link {
-  color: var(--ink);
+  color: var(--login-text-primary);
   text-decoration: underline;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
 }
 
 @media (max-width: 480px) {

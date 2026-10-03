@@ -11,6 +11,17 @@ export const useAuthStore = defineStore('auth', () => {
     'admin@ua.com': 'admin123'
   }
 
+  function getAccounts() {
+    return {
+      ...demoAccounts,
+      ...getStorage(STORAGE_KEYS.ACCOUNTS, {})
+    }
+  }
+
+  function saveAccounts(accounts) {
+    setStorage(STORAGE_KEYS.ACCOUNTS, accounts)
+  }
+
   const isLoggedIn = computed(() => !!user.value)
   const userName = computed(() => user.value?.name || '')
   const userEmail = computed(() => user.value?.email || '')
@@ -27,7 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
 
-    const expectedPassword = demoAccounts[normalizedEmail]
+    const expectedPassword = getAccounts()[normalizedEmail]
     if (expectedPassword !== normalizedPassword) {
       return false
     }
@@ -46,6 +57,45 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = userData
     setStorage(STORAGE_KEYS.USER, userData)
     return true
+  }
+
+  function register({ name, email, password }) {
+    const normalizedName = String(name || '').trim()
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    const normalizedPassword = String(password || '')
+
+    if (!normalizedName || !normalizedEmail || !normalizedPassword) {
+      return { success: false, message: 'Please complete all required fields.' }
+    }
+
+    if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
+      return { success: false, message: 'Please enter a valid email address.' }
+    }
+
+    if (normalizedPassword.length < 6) {
+      return { success: false, message: 'Password must be at least 6 characters long.' }
+    }
+
+    const accounts = getAccounts()
+    if (accounts[normalizedEmail]) {
+      return { success: false, message: 'An account with this email already exists.' }
+    }
+
+    accounts[normalizedEmail] = normalizedPassword
+    saveAccounts(accounts)
+
+    const userData = {
+      id: Date.now(),
+      name: normalizedName,
+      email: normalizedEmail,
+      role: 'customer',
+      phone: '',
+      createdAt: new Date().toISOString()
+    }
+
+    user.value = userData
+    setStorage(STORAGE_KEYS.USER, userData)
+    return { success: true, user: userData }
   }
 
   function logout() {
@@ -75,6 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
     userId,
     isAdmin,
     login,
+    register,
     logout,
     updateProfile,
     checkAuth

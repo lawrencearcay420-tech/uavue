@@ -1,7 +1,7 @@
 export const starterProducts = [
   { id: 1, name: 'UA Shirts', category: 'Tops', price: 1300, compareAtPrice: 1560, color: 'Black', badge: 'BESTSELLER', sizes: ['XS', 'S', 'M', 'L', 'XL'], image: 'https://www.uaworldwide.com/cdn/shop/files/BLACK.jpg?v=1782139399&width=800' },
   { id: 2, name: 'UA Hoodie', category: 'Jacket', price: 3500, compareAtPrice: 4200, color: 'Black', badge: 'NEW', sizes: ['S', 'M', 'L', 'XL'], image: 'https://www.uaworldwide.com/cdn/shop/files/ua-product-graphic-33.png?v=1773587210&width=1200' },
-  { id: 3, name: 'UA Cap', category: 'Accessories', price: 3254, compareAtPrice: 3905, color: 'Black', badge: '', sizes: ['OS'], image: 'https://www.uaworldwide.com/cdn/shop/files/ua-product-graphic-7o.png?v=1773587258&width=800' },
+  { id: 3, name: 'UA Cap', category: 'Accessories', price: 3254, compareAtPrice: 3905, color: 'Black', badge: 'NEW', sizes: ['OS'], image: 'https://www.uaworldwide.com/cdn/shop/files/ua-product-graphic-7o.png?v=1773587258&width=800' },
   { id: 4, name: 'UA Shirts', category: 'Tops', price: 3242, compareAtPrice: 3890, color: 'White', badge: 'LOW STOCK', sizes: ['XS', 'S', 'M', 'L', 'XL'], image: 'https://www.uaworldwide.com/cdn/shop/files/WHITE.jpg?v=1782139399' },
   { id: 5, name: 'UA', category: 'Bottoms', price: 3118, compareAtPrice: 3742, color: 'Black', badge: '', sizes: ['XS', 'S', 'M', 'L', 'XL'], image: 'https://www.uaworldwide.com/cdn/shop/files/UA-CARGO.png?v=1776241818&width=533' },
   { id: 6, name: 'UA Hoodie', category: 'Jacket', price: 3118, compareAtPrice: 3742, color: 'White', badge: '', sizes: ['XS', 'S', 'M', 'L', 'XL'], image: 'https://www.uaworldwide.com/cdn/shop/files/ua-product-graphic-37.png?v=1773587213&width=1200' },
